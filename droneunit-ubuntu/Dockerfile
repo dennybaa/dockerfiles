@@ -1,0 +1,9 @@
+FROM ubuntu
+
+# Update OS
+RUN apt-get update -y && DEBIAN_FRONTEND=noninteractive
+
+# Install 
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y wget curl git \
+      && apt-get clean
+
