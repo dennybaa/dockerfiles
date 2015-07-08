@@ -59,9 +59,14 @@ for cpath in $CONTAINERS; do
   if [ ! -z "$dockerfile" ]; then
     BUILD_OPTS="${BUILD_OPTS} -f ${c}/${dockerfile}"
     suffix="-$(echo $dockerfile | cut -f2 -d.)"
+  else
+    BUILD_OPTS="${BUILD_OPTS} -f ${c}/Dockerfile"
   fi
 
-  docker build ${BUILD_OPTS} -t ${PREFIX_PATH}${c}${suffix} $c || continue
+  echo "Building: ${PREFIX_PATH}${c}${suffix}    (at $(pwd))"
+  echo '========='
+
+  docker build ${BUILD_OPTS} -t ${PREFIX_PATH}${c}${suffix} ./ || continue
 
   # push is required
   [ "$NO_PUSH" != 1 ] && docker push ${PREFIX_PATH}${c}${suffix}
