@@ -8,5 +8,10 @@ RUN gpg --keyserver hkp://keys.gnupg.net --recv-keys 409B6B1796C275462A170311380
     echo rvm_install_on_use_flag=1 > /root/.rvmrc && \
     echo "source /etc/profile.d/rvm.sh" >> /root/.profile
 
+# Create busybee credentials
+RUN mkdir /root/.ssh
+COPY drone-busybee/busybee* /root/.ssh/
+RUN chmod 700 /root/.ssh && chmod 600 /root/.ssh/busybee
+
 ENTRYPOINT ["/bin/bash", "-lc"]
 CMD ["/bin/bash"]
