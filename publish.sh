@@ -96,7 +96,11 @@ for path in $CONTAINERS; do
 
   # Tag latest is required
   unlabled_tag="${tag%%:*}"
-  [ "$tag_latest" = 1 ] && docker tag -f ${tag} ${unlabled_tag}:latest
+  if [ "$tag_latest" = 1 ]; then
+    # the empty label is image is latest by default
+    docker tag -f ${tag} ${unlabled_tag}
+    docker tag -f ${tag} ${unlabled_tag}:latest
+  fi
 
   # Push is required
   [ "$NO_PUSH" = 1 ] || docker push ${unlabled_tag}
