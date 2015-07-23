@@ -1,107 +1,103 @@
-#!/bin/sh
-
-# This script builds/rebuilds containers and pushes them to remote registries.
-# Examples:
+#!/bin/bash
 #
-# ./publish.sh -p quay.io/dennybaa/ droneunit-ubuntu                    => quay.io/dennybaa/droneunit-ubuntu
-# ./publish.sh --no-push -p quay.io/dennybaa/ $(ls -d */)               => builds all containers
-# ./publish.sh -p quay.io/dennybaa/ droneunit/Dockerfile.debian:wheezy  => quay.io/dennybaa/droneunit-debian:wheezy
-#
-
-BUILD_DIR=.
 BUILD_OPTS=
-TEMP=`getopt -o p: -l no-cache,no-push,rm -- "$@"`
+TEMP=`getopt -o p: -l "no-cache,no-push,rm,cd" -- "$@"`
 parse_status=$?
 
-usage() {
-  echo "Usage: $0 [--no-cache --no-push --rm] [-p registry prefix path ] projectdir[/Dockerfile.flavor[:label]] projectdir[/Dockerfile.flavor[:label]] ..."
-  echo "\t --no-cache - Do not use cache when building the image"
-  echo "\t --no-push  - Do not publish into remote repository"
-  echo "\t --rm       - Remove intermediate containers after a successful build"
-  echo
-  echo "\t -p         - Path to remote registry including prefix, ex: quay.io/myusername/"
-  echo
-  echo "\t Containers found under custom Dockerfile path such as project/Dockerfile.flavor[:label]"
-  echo "\t will be tagged using the following pattern {path_to_remote}{project}{flavor}:[{label}]"
-  echo "\t For example command args as: '-p quay.io/dennybaa/ droneunit/Dockerfile.ubuntu:trusty'"
-  echo "\t will tag image as quay.io/dennybaa/droneunit-ubuntu:trusty"
-  echo
-  echo "\t Forced latest tagging happens when you build image specified as projectdir/Dockerfile.flavor:mylabel"
-  echo "\t and projectdir contains latest file with mylabel contents. So when image labeled as mylabel is"
-  echo "\t built this image will be labeled as latest automatically."
+set -e
+
+usage=$(cat <<HDE
+
+Usage: $0 [--no-cache --no-push --rm] [-p registry prefix] [(project | version version ... | project -- version version ...)]
+    
+Builds and pushes image to a remote registry.
+
+  --no-cache    - Do not use cache when building the image
+  --no-push     - Do not push image to a remote registry after a successful build
+  --rm          - Remove intermediate containers after a successful build.
+
+  -p registry prefix - Specifies registry prefix for an image which is being built and pushed.
+
+Examples:
+  1) ./publish.sh -p quay.io/dennybaa/ drone-busybee
+  2) ./publish.sh -p quay.io/dennybaa/ drone-busybee -- trusty precise
+  3) cd drone-busybee; ../publish.sh -p quay.io/dennybaa/
+  4) cd drone-busybee; ../publish.sh -p quay.io/dennybaa/ trusty jessie
+HDE
+)
+
+dot_latest() {
+  variant="$1"
+  if [ -z "$variant" ]; then
+    cat .latest | grep -v "^.*:" || true
+  else
+    cat .latest | sed "s/$variant://" || true
+  fi
 }
 
 
-# Retrieve tagname following the following convention
-#   -- .../project/Dockerfile.falvor[:label]
-# which maps the path to the following name project-flavor[:label]
-#
-tagname_from() {
-  path="$1"
-  dockerfile=$(basename "$path")
-  project=$(basename `echo "$path" | sed -r "s/\/+$dockerfile//"`)
-
-  flavor_label=$(echo "$dockerfile" | sed 's/.*Dockerfile\.//')
-  flavor="${flavor_label%%:*}"
-  label="${flavor_label##*:}"
-
-  [ -z "$project" ] && { echo 'Dockerfile must be located under $project/ diretory'; exit 1; }
-
-  tagname="$project"
-  [ -z "$flavor" ] || tagname="${tagname}-${flavor}"
-  [ -z "$label" ] || tagname="${tagname}:${label}"
-  echo "$tagname"
-}
-
-
-# parse check
-[ "0" != $parse_status ] && { echo && usage && exit $parse_status; }
+# Parse check
+[ "0" != $parse_status ] && { echo "$usage" && exit $parse_status; }
 
 # extract options and their arguments into variables.
 while true ; do
   case "$1" in
     -p)
-      PREFIX_PATH=$2; shift 2;;
+      REGPATH=$2; shift 2;;
     --no-cache)
       BUILD_OPTS="${BUILD_OPTS} --no-cache"; shift;;
     --no-push)
       NO_PUSH=1; shift;;
     --rm)
       BUILD_OPTS="${BUILD_OPTS} --rm"; shift;;
-
     *) break;;
   esac
 done
 
-# check containers list
-CONTAINERS=$@
-[ $(echo ${CONTAINERS} | wc -w) = 0 ] && { usage && exit 1; }
+# Change to project directory if needed
+if [ "$2" = '--' ]; then
+  cd "$1" && shift 2
+elif [ "$2" = '' ] && [ -f "$1/Dockerfile.template" ] ; then
+  cd "$1" && shift
+fi
 
-# Execute builds
-for path in $CONTAINERS; do
-  build_opts="${BUILD_OPTS} -f ${path}"
-  tagname=$(tagname_from "$path")
-  tag="${PREFIX_PATH}${tagname}"
+variants=$(cat .variants 2>/dev/null | sed ':a;N;$!ba;s/\n/ /g')
+reponame=$(basename $(pwd))
 
-  # Check project/latest, if content matches current label
-  # additional tagging will occur otherwise unset.
-  label=$(cat `dirname "$path"`/latest 2>/dev/null)
-  [ "$label" != "" -a "${tag##*:}" = "$label" ] && tag_latest=1
+versions=( "$@" )
+if [ ${#versions[@]} -eq 0 ]; then
+  versions=( */ )
+fi
+versions=( "${versions[@]%/}" )
 
-  # Build
-  echo "Building: ${tag} (at $(readlink -f $BUILD_DIR))"
-  echo '========='
-  echo "docker build ${build_opts} -t ${tag} ${BUILD_DIR}"
-  docker build ${build_opts} -t ${tag} ${BUILD_DIR} || continue
+debian="$(curl -fsSL 'https://github.com/docker-library/official-images/blob/master/library/debian')"
+ubuntu="$(curl -fsSL 'https://github.com/docker-library/official-images/blob/master/library/ubuntu-debootstrap')"
 
-  # Tag latest is required
-  unlabled_tag="${tag%%:*}"
-  if [ "$tag_latest" = 1 ]; then
-    # the empty label is image is latest by default
-    docker tag -f ${tag} ${unlabled_tag}
-    docker tag -f ${tag} ${unlabled_tag}:latest
+for version in "${versions[@]}"; do
+  if echo "$debian" | grep -q "$version:"; then
+    dist='debian'
+  elif echo "$ubuntu" | grep -q "$version:"; then
+    dist='ubuntu-debootstrap'
+  else
+    echo >&2 "error: cannot determine repo for '$version'"
+    echo "$usage"
+    exit 1
   fi
+  for variant in $variants ''; do
+    df="$version${variant:+/$variant}/Dockerfile"
+    tag="${REGPATH}${reponame}:${version}${variant:+-$variant}"
 
-  # Push is required
-  [ "$NO_PUSH" = 1 ] || docker push ${unlabled_tag}
+    # Build image
+    docker build $BUILD_OPTS -f "$df" -t "${tag}" .
+
+    # Tag the latest image when main variant is processed
+    latest=$(cat .latest 2>/dev/null || true)
+    if [ -z "$variant" ] && [ "$version" = "$latest" ] ; then
+      docker tag -f "$tag" "${REGPATH}${reponame}:latest"
+      docker push "${REGPATH}${reponame}:latest"
+    fi
+
+    # Push image
+    docker push "$tag"
+  done
 done
