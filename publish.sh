@@ -26,16 +26,6 @@ Examples:
 HDE
 )
 
-dot_latest() {
-  variant="$1"
-  if [ -z "$variant" ]; then
-    cat .latest | grep -v "^.*:" || true
-  else
-    cat .latest | sed "s/$variant://" || true
-  fi
-}
-
-
 # Parse check
 [ "0" != $parse_status ] && { echo "$usage" && exit $parse_status; }
 
@@ -61,7 +51,6 @@ elif [ "$2" = '' ] && [ -f "$1/Dockerfile.template" ] ; then
   cd "$1" && shift
 fi
 
-variants=$(cat .variants 2>/dev/null | sed ':a;N;$!ba;s/\n/ /g')
 reponame=$(basename $(pwd))
 
 versions=( "$@" )
@@ -74,7 +63,9 @@ debian="$(curl -fsSL 'https://github.com/docker-library/official-images/blob/mas
 ubuntu="$(curl -fsSL 'https://github.com/docker-library/official-images/blob/master/library/ubuntu-debootstrap')"
 
 for version in "${versions[@]}"; do
-  if echo "$debian" | grep -q "$version:"; then
+  if [ -f "$version/.skipdist" ]; then
+    :
+  elif echo "$debian" | grep -q "$version:"; then
     dist='debian'
   elif echo "$ubuntu" | grep -q "$version:"; then
     dist='ubuntu-debootstrap'
@@ -83,6 +74,8 @@ for version in "${versions[@]}"; do
     echo "$usage"
     exit 1
   fi
+
+  variants=$(cat .variants 2>/dev/null | grep "${version}" | sed 's/:.*//' || true)
   for variant in $variants ''; do
     df="$version${variant:+/$variant}/Dockerfile"
     tag="${REGPATH}${reponame}:${version}${variant:+-$variant}"
