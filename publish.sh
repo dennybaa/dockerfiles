@@ -85,12 +85,12 @@ for version in "${versions[@]}"; do
 
     # Tag the latest image when main variant is processed
     latest=$(cat .latest 2>/dev/null || true)
-    if [ -z "$variant" ] && [ "$version" = "$latest" ] ; then
+    if [ "$NO_PUSH" != 1 ] && [ -z "$variant" ] && [ "$version" = "$latest" ] ; then
       docker tag -f "$tag" "${REGPATH}${reponame}:latest"
       docker push "${REGPATH}${reponame}:latest"
     fi
 
     # Push image
-    docker push "$tag"
+    [ "$NO_PUSH" != 1 ] && docker push "$tag"
   done
 done
