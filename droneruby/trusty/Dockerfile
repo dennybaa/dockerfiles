@@ -9,4 +9,8 @@ RUN gpg --keyserver hkp://keys.gnupg.net --recv-keys 409B6B1796C275462A170311380
     echo rvm_install_on_use_flag=1 > /root/.rvmrc && \
     echo "source /etc/profile.d/rvm.sh" >> /root/.profile
 
+# Additional software (needed for RSpec, serverspec)
+RUN DEBIAN_FRONTEND=noninteractive && apt-get -y update && \
+    apt-get -y install netcat
+
 ENTRYPOINT ["/bin/bash", "-lc"]
