@@ -48,7 +48,7 @@ for version in "${versions[@]}"; do
   fi
 
   variants=$(cat .variants 2>/dev/null | grep "${version}" | sed 's/:.*//' || true)
-  for variant in $variants ''; do
+  for variant in '' $variants; do
     src="Dockerfile.template${variant:+-$variant}"
     trg="$version${variant:+/$variant}/Dockerfile"
     mkdir -p "$(dirname "$trg")"

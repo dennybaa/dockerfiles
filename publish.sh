@@ -76,7 +76,7 @@ for version in "${versions[@]}"; do
   fi
 
   variants=$(cat .variants 2>/dev/null | grep "${version}" | sed 's/:.*//' || true)
-  for variant in $variants ''; do
+  for variant in '' $variants; do
     df="$version${variant:+/$variant}/Dockerfile"
     tag="${REGPATH}${reponame}:${version}${variant:+-$variant}"
 
