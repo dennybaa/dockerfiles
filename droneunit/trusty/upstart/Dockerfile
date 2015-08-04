@@ -1,4 +1,4 @@
-FROM quay.io/dennybaa/drone-busybee:trusty
+FROM quay.io/dennybaa/droneunit:trusty
 # this image is based on https://github.com/tianon/dockerfiles/blob/master/sbin-init/ubuntu/upstart/Dockerfile.template
 #
 
@@ -34,10 +34,6 @@ RUN /usr/sbin/update-rc.d -f ondemand remove; \
 
 # let Upstart know it's in a container
 ENV container docker
-
-# install software to dockerunit
-RUN DEBIAN_FRONTEND=noninteractive && apt-get -y update && \
-    apt-get -y install gdebi-core sshpass cron
 
 # we can have SSH
 EXPOSE 22
