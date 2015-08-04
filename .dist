@@ -1,0 +1,4 @@
+ubuntu-debootstrap: precise trusty
+debian: jessie wheezy
+fedora: 20 21 22
+centos: 6 7

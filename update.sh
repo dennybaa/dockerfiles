@@ -2,10 +2,11 @@
 #
 set -e
 
+script_dir="$(dirname "$(readlink -f "$BASH_SOURCE")")"
 usage=$(cat <<HDE
 
 Usage: $0 [(project | version version ... | project -- version version ...)]
-    
+
 Updates Dockerfile files for template projects.
 
 Examples:
@@ -23,25 +24,43 @@ elif [ "$2" = '' ] && [ -f "$1/Dockerfile.template" ] ; then
   cd "$1" && shift
 fi
 
+
+# Retrieve specific dist and it's version
+# jessie -> debian, centos7 -> centos, fedora21 -> fedora
+get_dist_version() {
+  version="$1"
+  version_or_dist=$(echo "$version" | sed -r 's/[0-9.]+$//')
+
+  echo "[$version_or_dist]"
+
+  if (cat "$script_dir/.dist" | grep -q "^${version_or_dist}:"); then
+    # given variable is a version, such as wheezy or jessie
+    version="${version_or_dist}"
+    dist=$(grep "${version}" | sed 's/:.*//')
+
+  elif (cat "$script_dir/.dist" | grep -q ":.*${version_or_dist}"); then
+    # given variable is a dist, such as fedora or centos
+    dist=$(cat "$script_dir/.dist" | grep ":.*${version_or_dist}" | sed 's/:.*//')
+    version="${version_or_dist##$dist}"
+  fi
+
+  echo "$dist" "$version"
+}
+
+
 versions=( "$@" )
 if [ ${#versions[@]} -eq 0 ]; then
   versions=( */ )
 fi
 versions=( "${versions[@]%/}" )
 
-
-debian="$(curl -fsSL 'https://github.com/docker-library/official-images/blob/master/library/debian')"
-ubuntu="$(curl -fsSL 'https://github.com/docker-library/official-images/blob/master/library/ubuntu-debootstrap')"
-
 reponame=$(basename $(pwd))
 for version in "${versions[@]}"; do
-  if [ -f "$version/.skipdist" ]; then
-    :
-  elif echo "$debian" | grep -q "$version:"; then
-    dist='debian'
-  elif echo "$ubuntu" | grep -q "$version:"; then
-    dist='ubuntu-debootstrap'
-  else
+  dist_version=($(get_dist_version "$version"))
+  dist="${dist_version[0]}"
+  suite="${dist_version[1]}"
+
+  if [ -z "$dist" ]; then
     echo >&2 "error: cannot determine repo for '$version'"
     echo "$usage"
     exit 1
