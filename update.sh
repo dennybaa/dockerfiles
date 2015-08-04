@@ -28,20 +28,23 @@ fi
 # Retrieve specific dist and it's version
 # jessie -> debian, centos7 -> centos, fedora21 -> fedora
 get_dist_version() {
-  version="$1"
-  version_or_dist=$(echo "$version" | sed -r 's/[0-9.]+$//')
-
-  echo "[$version_or_dist]"
+  version_or_dist=$(echo "$1" | sed -r 's/[0-9.]+$//')
 
   if (cat "$script_dir/.dist" | grep -q "^${version_or_dist}:"); then
     # given variable is a version, such as wheezy or jessie
     version="${version_or_dist}"
-    dist=$(grep "${version}" | sed 's/:.*//')
+    dist=$(cat "$script_dir/.dist" | grep "${version}" | sed 's/:.*//')
 
   elif (cat "$script_dir/.dist" | grep -q ":.*${version_or_dist}"); then
     # given variable is a dist, such as fedora or centos
     dist=$(cat "$script_dir/.dist" | grep ":.*${version_or_dist}" | sed 's/:.*//')
     version="${version_or_dist##$dist}"
+  fi
+
+  if [ ! -f "$version/.notemplate" ] && [ -z "$dist" ]; then
+    echo >&2 "error: cannot determine repo for '$version'"
+    echo "$usage"
+    exit 1
   fi
 
   echo "$dist" "$version"
@@ -60,13 +63,7 @@ for version in "${versions[@]}"; do
   dist="${dist_version[0]}"
   suite="${dist_version[1]}"
 
-  if [ -z "$dist" ]; then
-    echo >&2 "error: cannot determine repo for '$version'"
-    echo "$usage"
-    exit 1
-  fi
-
-  variants=$(cat .variants 2>/dev/null | grep "${version}" | sed 's/:.*//' || true)
+  variants=$(cat .variants 2>/dev/null | grep "${version}\|_all_" | sed 's/:.*//' || true)
   for variant in '' $variants; do
     src="Dockerfile.template${variant:+-$variant}"
     trg="$version${variant:+/$variant}/Dockerfile"
