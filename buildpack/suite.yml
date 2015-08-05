@@ -1,0 +1,6 @@
+registry: quay.io/dennybaa/
+latest: centos7
+variants:
+  - curl
+  - scm
+  - null

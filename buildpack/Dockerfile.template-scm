@@ -1,0 +1,8 @@
+FROM {{registry}}{{image}}:{{suite}}-curl
+
+RUN yum -y install \
+    bzr \
+    git \
+    mercurial \
+    openssh \
+    subversion \
