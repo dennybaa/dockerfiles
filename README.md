@@ -5,7 +5,7 @@ Repository contains multiple image projects. Image project can contain template 
  - **update.py** - generates dockerfiles from given template files.
  - **publish.py** - builds and publishes containers to a docker registry hub, such as https://registry.hub.docker.com or https://quay.io.
  
- ## A short intro to templating
+## A short intro to templating
 
 Let's start with dockerfiles layout first:
 ```
