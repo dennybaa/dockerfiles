@@ -26,7 +26,9 @@ class PublishCLI(UpdateCLI):
 
 
 def shell_out(command):
-    return subprocess.call(command, shell=True)
+    rs = subprocess.call(command, shell=True)
+    if rs != 0:
+        sys.exit(rs)
 
 
 def main():
@@ -43,7 +45,7 @@ def main():
     build_opts = ' '.join(build_opts)
 
     tag_fmt = '{registry}{image}:{suite}{variant}'
-    build_cmd = "docker build {options} -f {path} -t {tag}"
+    build_cmd = "docker build {options} -f {path} -t {tag} ."
     taglatest_cmd = "docker tag -f {tag} {registry}{image}:latest"
     push_cmd = "docker push {tag}"
 
@@ -54,19 +56,19 @@ def main():
         tag = tag_fmt.format(**ctx)
 
         # Run docker build
-        shell_out('echo ' + build_cmd.format(path=dockerfile_path(_ctx),
-                                             tag=tag,
-                                             options=build_opts))
+        shell_out(build_cmd.format(path=dockerfile_path(_ctx),
+                                   tag=tag,
+                                   options=build_opts))
 
         # Tag latestest if suite.yml contains latest option
         if ctx['suite'] + ctx['variant'] == suite.latest:
-            shell_out('echo ' + taglatest_cmd.format(registry=ctx['registry'],
-                                                     image=ctx['image'],
-                                                     tag=tag))
+            shell_out(taglatest_cmd.format(registry=ctx['registry'],
+                                           image=ctx['image'],
+                                           tag=tag))
 
         # Push image
         if not args['no_push']:
-            shell_out('echo ' + push_cmd.format(tag=tag))
+            shell_out(push_cmd.format(tag=tag))
 
 
 if __name__ == '__main__':
