@@ -9,7 +9,7 @@ import jinja2
 import difflib
 
 
-def dockerfile_template_path(ctx):
+def dockerfile_template_name(ctx):
     tpl_list = filter(None, ("Dockerfile.template", ctx['variant']))
     filepath = '-'.join(tpl_list)
     # Abort if template not found, this is misconfiguration.
@@ -31,6 +31,45 @@ def template_exists(basepath='', abort=False):
         print("Error: {} file not found!".format(template_path))
         sys.exit(1)
     return exists
+
+
+def eqauls_or_matches(s, str_or_regex):
+    """Returns true or regex match.
+    """
+    _type = type(re.compile(''))
+    if isinstance(str_or_regex, _type):
+        return re.match(str_or_regex, s)
+    elif s == str_or_regex:
+        return True
+
+
+def match_and_fetch(value, item_or_hash):
+    """Expands a list of hashes or just strings. Returns actual item or hash key
+    on string or regex match.
+    """
+    def matches(s, match_list):
+        for str_or_regex in match_list:
+            if eqauls_or_matches(s, str_or_regex):
+                return True
+
+    item = item_or_hash
+    if isinstance(item, dict):
+        item, match_list = item.items()[0]
+    else:
+        match_list = [item]
+
+    if matches(value, match_list):
+        return item
+
+
+def render_template(ctx):
+    """Renderes Dockerfile jinja2 template.
+        - template_name is name or a relative path.
+    """
+    jenv = jinja2.Environment(loader=jinja2.FileSystemLoader('.'))
+    template_name = dockerfile_template_name(ctx)
+    template = jenv.get_template(template_name)
+    return template.render(ctx)
 
 
 class UpdateCLI(object):
@@ -86,13 +125,15 @@ class Suite(object):
         self.distmap_cache = {}
         self.workdir = workdir
         self.image = os.path.basename(os.path.abspath(workdir))
+        self.registry = ''
         self.suites = suites
         self.variants = [None]
-        self.registry = None
         self.latest = None
         self.load_suite_config()
 
     def load_suite_config(self):
+        yaml.add_constructor('!regexp', lambda l, n: re.compile(l.construct_scalar(n)))
+
         confpath = os.path.join(self.workdir, 'suite.yml')
         if os.path.isfile(confpath):
             fd = open(confpath, 'r')
@@ -112,38 +153,36 @@ class Suite(object):
             if ymlpath in self.distmap_cache:
                 return self.distmap_cache[ymlpath]
             if os.path.isfile(ymlpath):
-                found = True
+                found = ymlpath
                 break
             path = os.path.dirname(path)
         if not found:
             print("Error: file `dist.yml' not found in current or its parent directories!")
             sys.exit(1)
 
-        fd = open(ymlpath, 'r')
+        fd = open(found, 'r')
         data = yaml.load(fd)
         fd.close()
-        self.distmap_cache[ymlpath] = data
+        self.distmap_cache[found] = data
         return data
 
     def process(self):
-        yaml.add_constructor('!regexp', lambda l, n: re.compile(l.construct_scalar(n)))
-
         curd = os.getcwd()
         os.chdir(self.workdir)
-
         # Specific suites haven't been set, so list all directories
         if not self.suites:
             self.suites = (s.rstrip('/') for s in glob.glob('*/'))
 
         for suite in self.suites:
             for variant in self.variants:
-                # Check if variant supports only specific suites and skip
-                if isinstance(variant, dict):
-                    variant, suites = variant.items()[0]
-                    if suite not in suites:
-                        continue
-                yield(self.suite_context(suite, variant))
-
+                # Variant is None what means default, so empty string
+                if variant is None:
+                    yield(self.suite_context(suite, ''))
+                else:
+                    # Variant matches suite list of names or regexes
+                    variant = match_and_fetch(suite, variant)
+                    if variant:
+                        yield(self.suite_context(suite, variant))
         os.chdir(curd)
 
     def suite_context(self, suite, variant):
@@ -156,21 +195,19 @@ class Suite(object):
             'dist': dist,
             'version': version,
             'image': self.image,
-            'registry': self.registry or ''
+            'registry': self.registry
         }
 
     def find_distver(self, suite):
         """Find dist and its version by a suite name. Uses mappings from dist.yaml.
         """
-        retype = type(re.compile('hello, world'))
         for dist, mappings in self.load_distmap().items():
-            for imap in mappings:
-                if imap == suite:
+            for str_or_regex in mappings:
+                ematch = eqauls_or_matches(suite, str_or_regex)
+                if ematch is True:
                     return (dist, suite)
-                elif isinstance(imap, retype):
-                    m = re.match(imap, suite)
-                    if m:
-                        return (dist, m.group(1) or suite)
+                elif ematch:
+                    return (dist, ematch.group(1) or suite)
         print("Warn: suite to dist mapping not found! Check dist.yml for `{}' mapping."
               .format(suite))
 
@@ -183,28 +220,29 @@ def main():
     sp = Suite(workdir=opts['image_dir'], suites=opts['suites'])
 
     for ctx in sp.process():
-        j2env = jinja2.Environment(loader=jinja2.FileSystemLoader('./'))
+        rendered = render_template(ctx)
         target_filepath = dockerfile_path(ctx)
-        filepath = dockerfile_template_path(ctx)
-        template = j2env.get_template(filepath)
-        rendered = template.render(ctx)
+        target_abspath = os.path.abspath(target_filepath)
+        target_filepath_parent = os.path.dirname(target_abspath)
+
+        # ensure we have parent directory
+        if not os.path.isdir(target_filepath_parent):
+            os.makedirs(target_filepath_parent)
 
         mode = 'r+' if os.path.isfile(target_filepath) else 'w+'
         fd = open(target_filepath, mode)
-        current = fd.read().splitlines()
+        current_lines = fd.read().splitlines()
         fd.seek(0)
         fd.truncate()
 
-        abspath = os.path.abspath(target_filepath)
-        for line in difflib.unified_diff(current, rendered.splitlines(),
-                                         fromfile=abspath + '.~',
-                                         tofile=abspath,
+        for line in difflib.unified_diff(current_lines, rendered.splitlines(),
+                                         fromfile=target_abspath + '.~',
+                                         tofile=target_abspath,
                                          lineterm='', n=0):
             print line
 
         fd.write("{}\n".format(rendered))
         fd.close()
-
 
 if __name__ == '__main__':
     main()

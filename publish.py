@@ -31,44 +31,57 @@ def shell_out(command):
         sys.exit(rs)
 
 
+def convert_to_dash(s):
+    dashtbl = maketrans('_', '-')
+    return s.translate(dashtbl)
+
+
+def get_build_opts(option_list, args):
+    build_opts = ('--{}'.format(convert_to_dash(a)) for a in option_list if args[a])
+    return ' '.join(build_opts)
+
+
+# String formats
+TAG_FMT = '{registry}{image}:{suite}{variant}'
+BUILD_FMT = 'docker build {options} -f {path} -t {tag} .'
+TAGLATEST_FMT = 'docker tag -f {tag} {registry}{image}:latest'
+PUSH_FMT = 'docker push {tag}'
+
+
 def main():
     """Reads suite Dockerfile files
     """
-    dashtbl = maketrans('_', '-')
     cli = PublishCLI()
     opts = cli.process_options()
     args = cli.arguments
     suite = Suite(workdir=opts['image_dir'], suites=opts['suites'])
 
-    build_args = ['no_cache', 'rm']
-    build_opts = ('--{}'.format(a.translate(dashtbl)) for a in build_args if args[a])
-    build_opts = ' '.join(build_opts)
+    build_opts = ['no_cache', 'rm']
+    build_opts = get_build_opts(build_opts, args)
 
-    tag_fmt = '{registry}{image}:{suite}{variant}'
-    build_cmd = "docker build {options} -f {path} -t {tag} ."
-    taglatest_cmd = "docker tag -f {tag} {registry}{image}:latest"
-    push_cmd = "docker push {tag}"
+    for ctx in suite.process():
+        variant = ''
+        if ctx['variant']:
+            variant = '-{}'.format(ctx['variant'])
 
-    for _ctx in suite.process():
-        v = _ctx['variant']
-        ctx = copy.copy(_ctx)
-        ctx['variant'] = '' if v is None else '-{}'.format(v)
-        tag = tag_fmt.format(**ctx)
+        _ctx = {'variant': variant}
+        _ctx.update(ctx)
+        tag = TAG_FMT.format(**_ctx)
 
         # Run docker build
-        shell_out(build_cmd.format(path=dockerfile_path(_ctx),
-                                   tag=tag,
-                                   options=build_opts))
+        shell_out(BUILD_FMT.format(path=dockerfile_path(ctx),
+                                   options=build_opts,
+                                   tag=tag))
 
         # Tag latestest if suite.yml contains latest option
         if ctx['suite'] + ctx['variant'] == suite.latest:
-            shell_out(taglatest_cmd.format(registry=ctx['registry'],
+            shell_out(TAGLATEST_FMT.format(registry=ctx['registry'],
                                            image=ctx['image'],
                                            tag=tag))
 
         # Push image
         if not args['no_push']:
-            shell_out(push_cmd.format(tag=tag))
+            shell_out(PUSH_FMT.format(tag=tag))
 
 
 if __name__ == '__main__':
