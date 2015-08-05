@@ -1,4 +1,4 @@
-FROM quay.io/dennybaa/droneunit:SUITE
+FROM quay.io/dennybaa/droneunit:{{suite}}
 # this image is based on https://github.com/tianon/dockerfiles/blob/master/sbin-init/ubuntu/upstart/Dockerfile.template
 #
 

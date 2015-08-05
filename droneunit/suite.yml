@@ -1,0 +1,7 @@
+registry: quay.io/dennybaa/
+variants:
+  - upstart:
+    - trusty
+    - precise 
+  - null
+latest: trusty
