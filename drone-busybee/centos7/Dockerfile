@@ -1,4 +1,4 @@
-FROM quay.io/dennybaa/buildpack:centos7-scm
+FROM quay.io/dennybaa/buildpack:centos7
 
 # Enable remote pubkey access
 RUN mkdir /root/.ssh && chmod 700 /root/.ssh && \
@@ -9,3 +9,9 @@ COPY busybee*  /root/.ssh/
 RUN chmod 600 /root/.ssh/busybee
 
 RUN yum -y install openssh-server sudo
+
+# 1. small fix for SSH in 13.10 (that's harmless everywhere else)
+# 2. permit root logins and set simple password password
+RUN sed -ri 's/^session\s+required\s+pam_loginuid.so$/session optional pam_loginuid.so/' /etc/pam.d/sshd && \
+        sed -ri 's/^PermitRootLogin\s+.*/PermitRootLogin yes/' /etc/ssh/sshd_config && \
+        echo 'root:docker.io' | chpasswd

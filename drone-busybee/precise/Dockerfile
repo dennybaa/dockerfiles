@@ -1,4 +1,4 @@
-FROM buildpack-deps:precise-scm
+FROM buildpack-deps:precise
 
 # Enable remote pubkey access
 RUN mkdir /root/.ssh && chmod 700 /root/.ssh && \

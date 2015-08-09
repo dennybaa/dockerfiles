@@ -1,4 +1,4 @@
-FROM buildpack-deps:wheezy-scm
+FROM buildpack-deps:wheezy
 
 # Enable remote pubkey access
 RUN mkdir /root/.ssh && chmod 700 /root/.ssh && \

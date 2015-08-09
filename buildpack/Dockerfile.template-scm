@@ -1,4 +1,4 @@
-FROM {{registry}}{{image}}:{{suite}}-curl
+FROM {{ registry }}{{ image }}:{{ suite }}-curl
 
 RUN yum -y install \
     bzr \

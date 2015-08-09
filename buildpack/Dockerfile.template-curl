@@ -1,4 +1,4 @@
-FROM {{dist}}:{{version}}
+FROM {{ dist }}:{{ version }}
 
 RUN yum -y install \
     ca-certificates \

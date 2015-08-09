@@ -1,7 +1,7 @@
 {%- if dist in ('centos', 'fedora') -%}
-FROM {{ registry }}buildpack:{{ suite }}-scm
+FROM {{ registry }}buildpack:{{ suite }}
 {%- else -%}
-FROM buildpack-deps:{{ suite }}-scm
+FROM buildpack-deps:{{ suite }}
 {%- endif %}
 
 # Enable remote pubkey access
@@ -18,12 +18,10 @@ RUN yum -y install openssh-server sudo
 RUN DEBIAN_FRONTEND=noninteractive && apt-get -y update && \
     apt-get install -y openssh-server sudo && \
     mkdir /var/run/sshd
-{% endif %}
+{%- endif %}
 
-{%- if dist not in ('centos', 'fedora') %}
 # 1. small fix for SSH in 13.10 (that's harmless everywhere else)
 # 2. permit root logins and set simple password password
 RUN sed -ri 's/^session\s+required\s+pam_loginuid.so$/session optional pam_loginuid.so/' /etc/pam.d/sshd && \
         sed -ri 's/^PermitRootLogin\s+.*/PermitRootLogin yes/' /etc/ssh/sshd_config && \
         echo 'root:docker.io' | chpasswd
-{%- endif -%}

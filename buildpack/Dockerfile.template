@@ -1,4 +1,4 @@
-FROM {{registry}}{{image}}:{{suite}}-scm
+FROM {{ registry }}{{ image }}:{{ suite }}-scm
 
 RUN yum -y install \
     autoconf \
