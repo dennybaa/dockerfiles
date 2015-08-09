@@ -56,7 +56,7 @@ def match_and_fetch(value, item_or_hash):
     if isinstance(item, dict):
         item, match_list = item.items()[0]
     else:
-        match_list = [item]
+        match_list = [value]
 
     if matches(value, match_list):
         return item
@@ -89,7 +89,7 @@ class UpdateCLI(object):
         self.arguments = vars(self.parser.parse_args())
         return self.arguments
 
-    def process_options(self):
+    def process_options(self, abort_on_missing_template=True):
         """Process options, parse command line arguments and construct an
         options hash.
         """
@@ -97,21 +97,20 @@ class UpdateCLI(object):
 
         image = self.arguments['image']
         suites = self.arguments['suites']
+        image_dir = os.path.abspath(os.getcwd())
 
         if image:
-            if template_exists(basepath=image):
-                image_dir = os.path.abspath(image)
-
-            # first argument is a suite
-            elif template_exists():
-                image_dir = os.getcwd()
+            if template_exists():
+                # template exists in ./ ,so the first argument is a suite
                 suites.insert(0, os.path.basename(image_dir))
             else:
-                template_exists(basepath=image, abort=True)
+                image_dir = os.path.abspath(image)
+                # check and abort if required
+                template_exists(basepath=image, abort=abort_on_missing_template)
 
         # no arguments given, so we must be inside a directory with a suite template.
         else:
-            template_exists(abort=True)
+            template_exists(abort=abort_on_missing_template)
 
         self.options = {
             'image_dir': image_dir,
@@ -161,10 +160,10 @@ class Suite(object):
             sys.exit(1)
 
         fd = open(found, 'r')
-        data = yaml.load(fd)
+        data = (yaml.load(fd) or {})
         fd.close()
         self.distmap_cache[found] = data
-        return data
+        return (data or {})
 
     def process(self):
         curd = os.getcwd()
@@ -210,6 +209,7 @@ class Suite(object):
                     return (dist, ematch.group(1) or suite)
         print("Warn: suite to dist mapping not found! Check dist.yml for `{}' mapping."
               .format(suite))
+        return ('', suite)
 
 
 def main():

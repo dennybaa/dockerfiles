@@ -52,7 +52,7 @@ def main():
     """Reads suite Dockerfile files
     """
     cli = PublishCLI()
-    opts = cli.process_options()
+    opts = cli.process_options(abort_on_missing_template=False)
     args = cli.arguments
     suite = Suite(workdir=opts['image_dir'], suites=opts['suites'])
 
