@@ -9,8 +9,8 @@ import jinja2
 import difflib
 
 
-def dockerfile_template_name(ctx):
-    tpl_list = filter(None, ("Dockerfile.template", ctx['variant']))
+def dockerfile_template_name(variant):
+    tpl_list = filter(None, ("Dockerfile.template", variant))
     filepath = '-'.join(tpl_list)
     # Abort if template not found, this is misconfiguration.
     if not os.path.isfile(filepath):
@@ -19,8 +19,8 @@ def dockerfile_template_name(ctx):
     return filepath
 
 
-def dockerfile_path(ctx):
-    tgt_list = filter(None, (ctx['suite'], ctx['variant'], 'Dockerfile'))
+def dockerfile_path(suite=None, variant=None, **_):
+    tgt_list = filter(None, (suite, variant, 'Dockerfile'))
     return '/'.join(tgt_list)
 
 
@@ -67,7 +67,7 @@ def render_template(ctx):
         - template_name is name or a relative path.
     """
     jenv = jinja2.Environment(loader=jinja2.FileSystemLoader('.'))
-    template_name = dockerfile_template_name(ctx)
+    template_name = dockerfile_template_name(variant=ctx['variant'])
     template = jenv.get_template(template_name)
     return template.render(ctx)
 
@@ -221,7 +221,7 @@ def main():
 
     for ctx in sp.process():
         rendered = render_template(ctx)
-        target_filepath = dockerfile_path(ctx)
+        target_filepath = dockerfile_path(suite=ctx['suite'], variant=ctx['variant'])
         target_abspath = os.path.abspath(target_filepath)
         target_filepath_parent = os.path.dirname(target_abspath)
 
