@@ -1,4 +1,4 @@
-FROM quay.io/dennybaa/drone-busybee:{{suite}}
+FROM quay.io/dennybaa/drone-busybee:{{ suite }}
 
 # install core software for packaging and ssh communication
 RUN echo -e "#!/bin/sh\nexit 101\n" > /usr/sbin/policy-rc.d && \
