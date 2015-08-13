@@ -14,7 +14,9 @@ RUN DEBIAN_FRONTEND=noninteractive && apt-get -y update && \
 
 # 1. small fix for SSH in ubuntu 13.10 (that's harmless everywhere else)
 # 2. permit root logins and set simple password password and pubkey
+# 3. change requiretty to !requiretty in /etc/sudoers
 RUN sed -ri 's/^session\s+required\s+pam_loginuid.so$/session optional pam_loginuid.so/' /etc/pam.d/sshd && \
         sed -ri 's/^#?PermitRootLogin\s+.*/PermitRootLogin yes/' /etc/ssh/sshd_config && \
         sed -ri 's/^#?PubkeyAuthentication\s+.*/PubkeyAuthentication yes/' /etc/ssh/sshd_config && \
+        sed -ri 's/requiretty/!requiretty/' /etc/sudoers && \
         echo 'root:docker.io' | chpasswd

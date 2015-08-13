@@ -8,11 +8,14 @@ RUN mkdir /root/.ssh && chmod 700 /root/.ssh && \
 COPY busybee*  /root/.ssh/
 RUN chmod 600 /root/.ssh/busybee
 
-RUN yum -y install openssh-server sudo
+RUN yum -y install openssh-server sudo && \
+  ssh-keygen -t rsa -N '' -f /etc/ssh/ssh_host_rsa_key
 
 # 1. small fix for SSH in ubuntu 13.10 (that's harmless everywhere else)
 # 2. permit root logins and set simple password password and pubkey
+# 3. change requiretty to !requiretty in /etc/sudoers
 RUN sed -ri 's/^session\s+required\s+pam_loginuid.so$/session optional pam_loginuid.so/' /etc/pam.d/sshd && \
         sed -ri 's/^#?PermitRootLogin\s+.*/PermitRootLogin yes/' /etc/ssh/sshd_config && \
         sed -ri 's/^#?PubkeyAuthentication\s+.*/PubkeyAuthentication yes/' /etc/ssh/sshd_config && \
+        sed -ri 's/requiretty/!requiretty/' /etc/sudoers && \
         echo 'root:docker.io' | chpasswd
