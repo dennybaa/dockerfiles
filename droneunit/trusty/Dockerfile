@@ -3,8 +3,5 @@ FROM quay.io/dennybaa/drone-busybee:trusty
 # install core software for packaging and ssh communication
 RUN echo -e "#!/bin/sh\nexit 101\n" > /usr/sbin/policy-rc.d && \
     DEBIAN_FRONTEND=noninteractive && apt-get -y update && \
-    apt-get -y install gdebi-core sshpass cron
-
-# install network diagnostic software and helpers
-RUN DEBIAN_FRONTEND=noninteractive && \
-    apt-get -y install netcat
+    apt-get -y install gdebi-core sshpass cron \
+      netcat

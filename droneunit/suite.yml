@@ -3,5 +3,7 @@ variants:
   - null
   - upstart:
     - trusty
-    - precise 
+    - precise
+  - systemd:
+    - centos7
 latest: trusty
