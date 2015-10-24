@@ -14,3 +14,4 @@ RUN DEBIAN_FRONTEND=noninteractive && apt-get -y update && \
     apt-get -y install netcat
 
 ENTRYPOINT ["/bin/bash", "-lc"]
+CMD ["/bin/bash", "-l"]

@@ -6,4 +6,8 @@ variants:
     - precise
   - systemd:
     - centos7
+  - sshd:
+    - wheezy
+    - jessie
+    - centos6
 latest: trusty
