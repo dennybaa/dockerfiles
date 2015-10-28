@@ -1,2 +1,5 @@
 registry: quay.io/dennybaa/
 latest: trusty
+variants:
+  - rbenv
+  - null
