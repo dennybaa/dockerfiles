@@ -7,13 +7,9 @@ RUN git clone --depth 1 https://github.com/sstephenson/rbenv.git ~/.rbenv && \
     git clone --depth 1 https://github.com/sstephenson/ruby-build.git ~/.rbenv/plugins/ruby-build && \
     echo 'export PATH="$HOME/.rbenv/bin:$PATH"' >> ~/.bashrc && \
     echo 'eval "$(rbenv init -)"' >> ~/.bashrc && \
-    bash -c "~/.rbenv/bin/rbenv install $RBENV_VERSION"
+    ~/.rbenv/bin/rbenv install $RBENV_VERSION
 
 # Install default gems
-RUN bash -c "~/.rbenv/bin/rbenv exec gem install bundler --no-ri --no-rdoc"
-
-# Additional software (needed for RSpec, serverspec)
-RUN DEBIAN_FRONTEND=noninteractive && apt-get -y update && \
-    apt-get -y install netcat && apt-get -y clean
+RUN ~/.rbenv/bin/rbenv exec gem install bundler --no-ri --no-rdoc
 
 CMD /bin/bash
