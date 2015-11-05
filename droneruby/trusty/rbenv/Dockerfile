@@ -12,4 +12,6 @@ RUN git clone --depth 1 https://github.com/sstephenson/rbenv.git ~/.rbenv && \
 # Install default gems
 RUN ~/.rbenv/bin/rbenv exec gem install bundler --no-ri --no-rdoc
 
+# Support one-off "bash -c" commands since it looks like they don't read ~/.bashrc
+ENV PATH /root/.rbenv/shims:/root/.rbenv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 CMD /bin/bash
